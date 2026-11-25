@@ -1,0 +1,55 @@
+{
+  "name": "link-preview",
+  "version": "0.1.0",
+  "description": "Paste a URL and see how its link preview looks in iMessage, Discord, X, Slack, WhatsApp and more — plus what to fix.",
+  "private": true,
+  "license": "MIT",
+  "author": "ztxv",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ztxv/link-preview.git"
+  },
+  "homepage": "https://github.com/ztxv/link-preview#readme",
+  "bugs": {
+    "url": "https://github.com/ztxv/link-preview/issues"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n web,capture -c blue,magenta \"next dev\" \"npm:worker\"",
+    "dev:web": "next dev",
+    "build": "next build",
+    "start": "concurrently -k -n web,capture -c blue,magenta \"next start\" \"npm:worker\"",
+    "start:web": "next start",
+    "worker": "node worker/capture-worker.ts",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "next build && playwright test",
+    "browsers:install": "playwright install chromium webkit",
+    "assets:demo": "node scripts/generate-demo-assets.ts",
+    "check": "npm run lint && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "image-size": "^2.1.0",
+    "ipaddr.js": "^2.5.0",
+    "next": "16.4.6",
+    "playwright": "^1.65.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.19.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^10.0.7",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "typescript": "^5",
+    "vitest": "^5.1.1"
+  }
+}
