@@ -413,6 +413,8 @@ table.fields { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .raw-tags ol { padding-left: 24px; }
 .tag-value { overflow-wrap: anywhere; }
 .code-block { background: var(--code-block-bg); color: var(--code-block-ink); border: 1px solid var(--code-block-line); border-radius: var(--radius); padding: 14px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; margin: 8px 0 0; }
+.ai-handoff .ai-actions { margin: 10px 0 12px; }
+.ai-handoff .code-block { max-height: 360px; overflow: auto; }
 .code-block code { background: none; padding: 0; color: inherit; font-size: inherit; white-space: pre; }
 
 /* ---------- mobile ---------- */

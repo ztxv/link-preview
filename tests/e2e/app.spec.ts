@@ -75,7 +75,7 @@ test.describe("share cards", () => {
     await expect(page.getByLabel("Page URL")).toHaveValue("demo.link-preview.test/plain");
     await expect(card(page, "iMessage")).toContainText("Fieldnote changelog — plain page with no share tags");
     await expect(page.locator(".issues")).toContainText("iMessage is using the page title for the title because og:title is missing");
-    await expect(page.locator(".code-block")).toContainText("PLACEHOLDER");
+    await expect(page.locator("[aria-labelledby='tags-h'] .code-block")).toContainText("PLACEHOLDER");
 
     await previewUrl(page, `${DEMO}/old-launch`);
     await expect(page.locator(".result-facts")).toContainText("Redirected to");
@@ -177,6 +177,20 @@ test.describe("more platforms", () => {
     await expect(issues).toContainText("will show a small thumbnail instead of a large image");
     await expect(issues).toContainText("Facebook ignores images under 200×200");
     await expect(page.locator("table.fields")).toContainText("Blocked (noindex)");
+  });
+
+  test("copy prompts for a coding agent and for chat", async ({ page }) => {
+    await page.goto("/");
+    await previewUrl(page, `${DEMO}/diagnostics`);
+    await page.getByRole("button", { name: "Copy prompt for coding agent" }).click();
+    const agent = await page.evaluate(() => navigator.clipboard.readText());
+    expect(agent).toContain("You have access to my codebase");
+    expect(agent).toContain("The page tells search engines not to index it");
+    expect(agent).toContain(`${DEMO}/diagnostics`);
+    await page.getByRole("button", { name: "Copy prompt for chat" }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("You can't see my code");
+    await page.getByText("Preview the coding-agent prompt").click();
+    await expect(page.locator(".ai-handoff pre")).toContainText("What needs fixing");
   });
 
   test("the app ships its own favicon", async ({ page }) => {

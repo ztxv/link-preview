@@ -1,6 +1,7 @@
 "use client";
 
 import { PLATFORMS } from "@/lib/platforms";
+import { buildAgentPrompt } from "@/lib/preview/prompt";
 import type { CardImage, FieldChoice, ImageCheck, Issue, LinkCard, Platform, PreviewResult } from "@/lib/preview/types";
 import { CopyButton } from "./CopyButton";
 
@@ -31,6 +32,9 @@ export function MetadataPanel({ result, hidden = [] }: { result: PreviewResult; 
     error: issues.filter((i) => i.severity === "error").length,
     warning: issues.filter((i) => i.severity === "warning").length,
   };
+
+  const agentPrompt = buildAgentPrompt(result, "agent", hidden);
+  const chatPrompt = buildAgentPrompt(result, "chat", hidden);
 
   return (
     <details className="inspector" open>
@@ -244,6 +248,25 @@ export function MetadataPanel({ result, hidden = [] }: { result: PreviewResult; 
           <pre className="code-block" tabIndex={0}>
             <code>{result.suggestedTags}</code>
           </pre>
+        </section>
+
+        <section aria-labelledby="ai-h" className="ai-handoff">
+          <h3 id="ai-h">Hand this to your AI</h3>
+          <p className="small">
+            Copies a brief with every issue above, what the page declares today, and the tags to aim for, so you don&apos;t have to
+            screenshot anything. Use the <strong>coding agent</strong> version in Claude Code, Cursor or Codex (it edits your
+            repo), or the <strong>chat</strong> version in Claude or ChatGPT (it replies with tags to paste).
+          </p>
+          <div className="row gap ai-actions">
+            <CopyButton text={agentPrompt} label="Copy prompt for coding agent" className="btn btn-primary" />
+            <CopyButton text={chatPrompt} label="Copy prompt for chat" />
+          </div>
+          <details className="raw-tags">
+            <summary>Preview the coding-agent prompt</summary>
+            <pre className="code-block" tabIndex={0}>
+              <code>{agentPrompt}</code>
+            </pre>
+          </details>
         </section>
       </div>
     </details>

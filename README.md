@@ -35,6 +35,7 @@ Open Graph and Twitter Card tags decide what your page looks like when it's past
 
 - **12 simulated cards.** iMessage, Discord, X (Twitter), Slack, WhatsApp, Telegram, Facebook/Messenger, LinkedIn, Reddit, Bluesky, Mastodon and a Google Search result, each with its own image crop, text wrapping and fallback rules. Platform chips hide the ones you don't care about.
 - **Metadata & fixes.** Which tag each card used (or which fallback), measured image sizes, prioritized issues labeled by platform, and a copyable snippet of suggested Open Graph / Twitter Card tags.
+- **Hand it to your AI.** One click copies a brief for a coding agent (Claude Code, Cursor, Codex) or for a chat assistant (Claude, ChatGPT): every issue, what the page declares today, and the tags to aim for. No more screenshots. Text read from the page is flattened and labeled as data, so a hostile page can't inject instructions.
 - **Real phone screenshots.** iPhone (WebKit) and Android (Chromium) presets, taken by an isolated Playwright worker. Optional: the cards work without it.
 - **Per-URL accuracy.** Path and query string are kept, so each landing page or campaign URL is checked on its own. Redirects are followed and reported.
 - **Safe by design.** Public http(s) only, enforced at connection time; images are validated and re-served through opaque tokens. See [Safe fetching](#safe-fetching).
@@ -166,6 +167,7 @@ The thresholds above are constants in `src/lib/preview/cards.ts` (`LARGE_IMAGE_M
 - The full, untruncated text of every field is shown with its source tag or fallback.
 - `og:image` entries are listed in document order with their own `width`/`height`/`type`/`alt`/`secure_url`, plus measured dimensions, format and size.
 - The canonical URL and `og:url` are shown as *reported* metadata; the tool always inspects the URL you submitted (after redirects).
+- **Hand this to your AI** copies a ready-made prompt (coding-agent or chat version) listing the issues for the platforms you have selected, the page's current values and the tags to aim for. The source is `src/lib/preview/prompt.ts`.
 - **Copy suggested tags** generates HTML-escaped OG + Twitter tags from known values. Unknown values become lines marked `PLACEHOLDER`. Merge the snippet into your page's existing `<head>` rather than appending duplicates.
 
 ## Safe fetching
@@ -221,8 +223,8 @@ npm run check       # eslint + tsc + unit/integration tests (vitest)
 npm run test:e2e    # next build + Playwright end-to-end tests (own servers on :3100 and :4411)
 ```
 
-- **Unit / integration (`tests/unit`, 115 tests):** the fetch → parse → image check → cards → issues pipeline over real sockets against a local fixture server (redirect chains, query variants, broken images, gzip, legacy charsets, truncation, timeouts, loops), per-platform field fallbacks and image-size layouts, escaped suggested tags, the destination policy across IPv4/IPv6 private and reserved ranges, connection-time enforcement, and the capture worker's egress proxy.
-- **End-to-end (`tests/e2e`, 18 tests):** the real UI against a production build: cards side by side and stacked at phone width, a card for every platform with working chips, copy buttons, blocked destinations, real screenshots from both mobile presets, the capture-unavailable fallback, and the dark-by-default theme toggle.
+- **Unit / integration (`tests/unit`, 120 tests):** the fetch → parse → image check → cards → issues pipeline over real sockets against a local fixture server (redirect chains, query variants, broken images, gzip, legacy charsets, truncation, timeouts, loops), per-platform field fallbacks and image-size layouts, escaped suggested tags, the destination policy across IPv4/IPv6 private and reserved ranges, connection-time enforcement, and the capture worker's egress proxy.
+- **End-to-end (`tests/e2e`, 19 tests):** the real UI against a production build: cards side by side and stacked at phone width, a card for every platform with working chips, copy buttons, blocked destinations, real screenshots from both mobile presets, the capture-unavailable fallback, the AI prompt copy buttons, and the dark-by-default theme toggle.
 
 CI runs `npm run check` and `npm run build` on every push and pull request.
 
