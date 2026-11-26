@@ -15,7 +15,8 @@ const nextConfig: NextConfig = {
   // ship the compressed Chromium binaries that @sparticuz/chromium reads at runtime.
   serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
   outputFileTracingIncludes: {
-    "/api/capture": ["./node_modules/@sparticuz/chromium/bin/**"],
+    // playwright-core reads files such as browsers.json at runtime, which static tracing can't see.
+    "/api/capture": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/playwright-core/**"],
   },
 };
 
