@@ -1,19 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="bg" x1="8" y1="0" x2="56" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#6b8bff"/>
-      <stop offset="1" stop-color="#3a46d6"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
-  <!-- chain link -->
-  <g fill="none">
-    <rect x="-14" y="-8" width="28" height="16" rx="8" transform="translate(27 27) rotate(-45) translate(-7.5 -2.5)" stroke="#fff" stroke-width="4.6"/>
-    <rect x="-14" y="-8" width="28" height="16" rx="8" transform="translate(27 27) rotate(-45) translate(7.5 2.5)" stroke="#4a5de8" stroke-width="8"/>
-    <rect x="-14" y="-8" width="28" height="16" rx="8" transform="translate(27 27) rotate(-45) translate(7.5 2.5)" stroke="#fff" stroke-width="4.6"/>
+  <title>Link Preview Studio</title>
+  <rect width="64" height="64" rx="15" fill="#2F5BD3"/>
+  <g transform="translate(-1.5 .5) rotate(-45 32 32)" fill="none"
+     stroke="#fff" stroke-width="5.6" stroke-linecap="round">
+    <path d="M25 21.5H19a9.5 9.5 0 0 0 0 19h6M21 31h10m11.5 11.5V53"/>
+    <circle cx="42.5" cy="31" r="11.5"/>
   </g>
-  <!-- magnifying glass -->
-  <circle cx="41" cy="41" r="11.5" fill="#2a3ac0" fill-opacity=".45"/>
-  <circle cx="41" cy="41" r="11.5" fill="none" stroke="#ffd166" stroke-width="4.4"/>
-  <path d="M49.3 49.3 L57 57" stroke="#ffd166" stroke-width="6.6" stroke-linecap="round"/>
 </svg>
