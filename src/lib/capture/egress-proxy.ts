@@ -7,8 +7,8 @@
 import dns from "node:dns";
 import http from "node:http";
 import net from "node:net";
-import { ALLOWED_PORTS, checkAddress, checkHostname, checkUrl } from "../src/lib/net/ip-policy.ts";
-import { guardedLookup } from "../src/lib/net/safe-fetch.ts";
+import { ALLOWED_PORTS, checkAddress, checkHostname, checkUrl } from "../net/ip-policy.ts";
+import { guardedLookup } from "../net/safe-fetch.ts";
 
 export interface EgressStats {
   requests: number;

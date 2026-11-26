@@ -3,17 +3,22 @@ import { DEMO_HOST } from "@/lib/demo/site-info";
 import { checkUrl } from "@/lib/net/ip-policy";
 import { normalizeInput } from "@/lib/preview/normalize";
 
+// Chromium start-up plus a page load can take a while on a cold serverless instance.
+export const maxDuration = 60;
+
 /**
- * Proxies mobile capture requests to the isolated Playwright worker.
- * CAPTURE_WORKER_URL defaults to the local worker; set it to "off" in
- * deployments without a worker and the UI shows capture as unavailable.
- * On Vercel there is no local worker, so capture is off unless a worker URL is set.
+ * Mobile capture has three modes:
+ *   - worker: proxy to the Playwright worker (CAPTURE_WORKER_URL, default http://127.0.0.1:4410)
+ *   - inline: on Vercel with no worker URL, run a serverless Chromium inside this function
+ *   - off:    CAPTURE_WORKER_URL=off; the UI shows capture as unavailable
  */
-function workerUrl(): string | null {
+type Mode = { kind: "worker"; base: string } | { kind: "inline" } | { kind: "off" };
+
+function captureMode(): Mode {
   const v = process.env.CAPTURE_WORKER_URL?.trim();
-  if (v === "off" || v === "disabled") return null;
-  if (!v && process.env.VERCEL) return null;
-  return (v || "http://127.0.0.1:4410").replace(/\/$/, "");
+  if (v === "off" || v === "disabled") return { kind: "off" };
+  if (!v && process.env.VERCEL) return { kind: "inline" };
+  return { kind: "worker", base: (v || "http://127.0.0.1:4410").replace(/\/$/, "") };
 }
 
 function workerHeaders(): Record<string, string> {
@@ -32,11 +37,13 @@ function json(body: unknown, status: number) {
 }
 
 export async function GET() {
-  const base = workerUrl();
-  if (!base) return json({ available: false }, 200);
+  const mode = captureMode();
+  if (mode.kind === "off") return json({ available: false }, 200);
+  if (mode.kind === "inline") return json({ available: true, engines: ["chromium"] }, 200);
   try {
-    const res = await fetch(`${base}/health`, { headers: workerHeaders(), signal: AbortSignal.timeout(1500), cache: "no-store" });
-    return json({ available: res.ok }, 200);
+    const res = await fetch(`${mode.base}/health`, { headers: workerHeaders(), signal: AbortSignal.timeout(1500), cache: "no-store" });
+    const health = res.ok ? await res.json().catch(() => ({})) : {};
+    return json({ available: res.ok, engines: health.engines ?? ["webkit", "chromium"] }, 200);
   } catch {
     return json({ available: false }, 200);
   }
@@ -62,8 +69,10 @@ export async function POST(request: Request) {
     }
   }
 
-  const base = workerUrl();
-  if (!base) return json(UNAVAILABLE, 503);
+  const mode = captureMode();
+  if (mode.kind === "off") return json(UNAVAILABLE, 503);
+  if (mode.kind === "inline") return captureInline(normalized.url, body.preset);
+  const base = mode.base;
 
   let res: Response;
   try {
@@ -98,4 +107,26 @@ export async function POST(request: Request) {
       "x-capture-info": res.headers.get("x-capture-info") ?? "",
     },
   });
+}
+
+async function captureInline(url: string, preset: "iphone" | "android") {
+  try {
+    const { inlineCapturer } = await import("@/lib/capture/inline");
+    const { image, info } = await inlineCapturer.capture(url, preset);
+    console.log(`[capture] ok preset=${info.preset} ${info.durationMs}ms ${Math.round(image.length / 1024)}KB`);
+    return new Response(new Uint8Array(image), {
+      status: 200,
+      headers: {
+        "content-type": "image/jpeg",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+        "x-capture-info": encodeURIComponent(JSON.stringify(info)),
+      },
+    });
+  } catch (err) {
+    const { toCaptureError } = await import("@/lib/capture/engine");
+    const e = toCaptureError(err);
+    console.log(`[capture] failed code=${e.code}`);
+    return json({ ok: false, code: e.code, message: e.message }, e.status);
+  }
 }

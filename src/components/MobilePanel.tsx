@@ -26,6 +26,8 @@ export function MobilePanel({ url, active }: { url: string; active: boolean }) {
   const [preset, setPreset] = useState<PresetId>("iphone");
   const [captures, setCaptures] = useState<Partial<Record<PresetId, Capture>>>({});
   const [available, setAvailable] = useState<boolean | null>(null);
+  // Engines the capture host can run; serverless hosts have no WebKit, so the iPhone is emulated in Chromium.
+  const [engines, setEngines] = useState<string[]>(["webkit", "chromium"]);
   const urls = useRef<string[]>([]);
 
   useEffect(() => {
@@ -33,7 +35,11 @@ export function MobilePanel({ url, active }: { url: string; active: boolean }) {
     let cancelled = false;
     fetch("/api/capture", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => !cancelled && setAvailable(!!d.available))
+      .then((d) => {
+        if (cancelled) return;
+        setAvailable(!!d.available);
+        if (Array.isArray(d.engines)) setEngines(d.engines);
+      })
       .catch(() => !cancelled && setAvailable(false));
     return () => {
       cancelled = true;
@@ -73,6 +79,8 @@ export function MobilePanel({ url, active }: { url: string; active: boolean }) {
 
   const current = captures[preset];
   const p = CAPTURE_PRESETS[preset];
+  const engineLabel = engines.includes(p.engine) ? p.engineLabel : "Chromium";
+  const emulated = engineLabel !== p.engineLabel;
 
   return (
     <section className="mobile" aria-labelledby="mobile-h">
@@ -102,8 +110,9 @@ export function MobilePanel({ url, active }: { url: string; active: boolean }) {
           </a>
         </div>
         <p className="small muted">
-          A real screenshot from a headless {p.engineLabel} browser at {p.viewport.width}×{p.viewport.height} CSS px, DPR{" "}
+          A real screenshot from a headless {engineLabel} browser at {p.viewport.width}×{p.viewport.height} CSS px, DPR{" "}
           {p.deviceScaleFactor}. It emulates the device; it isn&apos;t the device&apos;s own browser.
+          {emulated && ` ${p.engineLabel} isn't available on this host, so the ${p.label} viewport and user agent run in ${engineLabel}.`}
         </p>
         {available === false && (
           <div className="notice" role="status">
@@ -120,7 +129,7 @@ export function MobilePanel({ url, active }: { url: string; active: boolean }) {
             {!current && <div className="phone-empty">Press “Capture screenshot” to render this page at {p.label} size.</div>}
             {current?.status === "loading" && (
               <div className="phone-empty" aria-busy="true">
-                Rendering in {p.engineLabel}… this usually takes a few seconds.
+                Rendering in {engineLabel}… this usually takes a few seconds (the first capture after a while can take longer).
               </div>
             )}
             {current?.status === "error" && (

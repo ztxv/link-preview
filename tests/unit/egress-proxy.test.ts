@@ -1,8 +1,8 @@
 import http from "node:http";
 import net from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { startEgressProxy } from "../../worker/egress-proxy.ts";
-import type { EgressProxy } from "../../worker/egress-proxy.ts";
+import { startEgressProxy } from "../../src/lib/capture/egress-proxy.ts";
+import type { EgressProxy } from "../../src/lib/capture/egress-proxy.ts";
 
 let proxy: EgressProxy;
 let target: http.Server;

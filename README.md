@@ -36,7 +36,7 @@ Open Graph and Twitter Card tags decide what your page looks like when it's past
 - **12 simulated cards.** iMessage, Discord, X (Twitter), Slack, WhatsApp, Telegram, Facebook/Messenger, LinkedIn, Reddit, Bluesky, Mastodon and a Google Search result, each with its own image crop, text wrapping and fallback rules. Platform chips hide the ones you don't care about.
 - **Metadata & fixes.** Which tag each card used (or which fallback), measured image sizes, prioritized issues labeled by platform, and a copyable snippet of suggested Open Graph / Twitter Card tags.
 - **Hand it to your AI.** One click copies a brief for a coding agent (Claude Code, Cursor, Codex) or for a chat assistant (Claude, ChatGPT): every issue, what the page declares today, and the tags to aim for. No more screenshots. Text read from the page is flattened and labeled as data, so a hostile page can't inject instructions.
-- **Real phone screenshots.** iPhone (WebKit) and Android (Chromium) presets, taken by an isolated Playwright worker. Optional: the cards work without it.
+- **Real phone screenshots.** iPhone and Android presets, rendered by a real headless browser (Playwright). Locally the iPhone uses WebKit; on Vercel both run in Chromium with the device's viewport, pixel ratio and user agent, and the result says so.
 - **Per-URL accuracy.** Path and query string are kept, so each landing page or campaign URL is checked on its own. Redirects are followed and reported.
 - **Safe by design.** Public http(s) only, enforced at connection time; images are validated and re-served through opaque tokens. See [Safe fetching](#safe-fetching).
 - **Dark by default.** Light-mode switch in the top bar (saved locally, applied before first paint), smooth theme transitions, and animation that respects `prefers-reduced-motion`.
@@ -87,7 +87,7 @@ The app deploys to Vercel as-is. Share cards, the inspector and the bundled exam
 
 What to expect on Vercel:
 
-- **Phone screenshots are off.** A Playwright browser can't run inside a serverless function, so on Vercel the Mobile tab says capture is unavailable and offers **Open original**. To keep screenshots, run the worker elsewhere (a container or VM with an egress firewall) and set `CAPTURE_WORKER_URL` and `CAPTURE_WORKER_TOKEN`. See [Mobile capture](#mobile-capture).
+- **Phone screenshots work, in Chromium.** With no worker configured, Vercel runs a serverless Chromium inside the `/api/capture` function (the first capture after idle takes a few extra seconds while it starts). WebKit isn't available there, so the iPhone preset is emulated in Chromium and labeled as such. To use WebKit or heavier isolation, run the worker elsewhere and set `CAPTURE_WORKER_URL` and `CAPTURE_WORKER_TOKEN`; set `CAPTURE_WORKER_URL=off` to disable capture. See [Mobile capture](#mobile-capture).
 - **Function limits.** `/api/preview` is allowed up to 60 s and `/api/image/[token]` up to 30 s. Each page fetch is bounded to 10 s, so slow sites fail with a readable message.
 - **It is a public fetcher.** Destinations are restricted to public addresses, but there is no per-client rate limiting. Put Vercel's firewall or rate limiting in front of it if the deployment is open to everyone.
 
@@ -185,12 +185,12 @@ All submitted URLs, redirect targets and page-provided asset URLs are untrusted 
 
 ## Mobile capture
 
-`worker/capture-worker.ts` is a separate Node process (default `127.0.0.1:4410`) that the Next.js app calls via `/api/capture`.
+`worker/capture-worker.ts` is a separate Node process (default `127.0.0.1:4410`) that the Next.js app calls via `/api/capture`. The capture logic itself lives in `src/lib/capture/engine.ts` and is shared with the in-process mode used on Vercel.
 
 Per capture it:
 
 - starts a **fresh browser context** (no cookies, storage, cache or permissions) on a long-lived Chromium or WebKit process;
-- routes **all browser traffic through a per-capture egress proxy** (`worker/egress-proxy.ts`) that resolves and checks every destination — page, subresources, redirects and HTTPS `CONNECT` tunnels — and connects only to the checked public IP; Chromium's implicit loopback proxy bypass is disabled, and request routing also aborts non-public URLs before they leave the browser;
+- routes **all browser traffic through a per-capture egress proxy** (`src/lib/capture/egress-proxy.ts`) that resolves and checks every destination — page, subresources, redirects and HTTPS `CONNECT` tunnels — and connects only to the checked public IP; Chromium's implicit loopback proxy bypass is disabled, and request routing also aborts non-public URLs before they leave the browser;
 - disables WebSockets, service workers, downloads, popups, dialogs and WebRTC;
 - enforces hard limits: 15 s navigation, 30 s total, 400 requests, 30 MB, 5 000 CSS-px page height, 2 concurrent captures with a queue of 4.
 
@@ -207,14 +207,14 @@ Configuration:
 
 | Variable | Where | Default | Purpose |
 | --- | --- | --- | --- |
-| `CAPTURE_WORKER_URL` | Next.js | `http://127.0.0.1:4410` | Worker address. Set to `off` when no worker is deployed. |
+| `CAPTURE_WORKER_URL` | Next.js | `http://127.0.0.1:4410` (on Vercel: in-process Chromium) | Worker address. Set to `off` to disable capture. |
 | `CAPTURE_WORKER_TOKEN` | both | — | Shared secret sent as `x-capture-token` (set it if the worker is reachable by anything other than the app). |
 | `CAPTURE_WORKER_PORT` / `CAPTURE_WORKER_HOST` | worker | `4410` / `127.0.0.1` | Listen address. |
 | `CAPTURE_MAX_CONCURRENT` | worker | `2` | Parallel captures. |
 | `LPS_SECRET` | Next.js | random per process | Key for image tokens. Set it when running more than one app instance. |
 | `LPS_MAX_CONCURRENT_FETCHES` | Next.js | `8` | Outbound fetch concurrency. |
 
-**Deployments without the worker** (for example a serverless host): set `CAPTURE_WORKER_URL=off`. On Vercel this is automatic when `CAPTURE_WORKER_URL` is unset. The Mobile tab then says capture is unavailable and offers **Open original**; the share cards and inspector work normally. If the worker is unreachable for any other reason, the UI shows the same fallback.
+**Serverless hosts (Vercel).** With `CAPTURE_WORKER_URL` unset, `/api/capture` runs the same capture engine in-process using `@sparticuz/chromium` (`src/lib/capture/inline.ts`): same egress proxy, same limits, except one capture at a time per function instance and Chromium only. Set `CAPTURE_WORKER_URL` to use an external worker instead, or `off` to turn capture off (the Mobile tab then says it's unavailable and offers **Open original**). If a configured worker is unreachable, the UI shows the same fallback.
 
 ## Development
 
@@ -234,8 +234,8 @@ src/components/          Workbench, cards (CardsView + PlatformCards), inspector
 src/lib/net/             Destination policy and guarded fetcher (shared with the worker)
 src/lib/preview/         Parser, image checks, card rules, issues, suggested tags
 src/lib/demo/            Bundled example site and embedded images
-src/lib/capture/         Device presets
-worker/                  Capture worker and egress proxy
+src/lib/capture/         Device presets, capture engine, egress proxy, Vercel in-process capture
+worker/                  Local capture worker (HTTP wrapper around the engine)
 scripts/                 Demo asset generator
 tests/unit, tests/e2e    Vitest and Playwright suites
 docs/screenshots/        README images
@@ -246,7 +246,7 @@ docs/screenshots/        README images
 - **Simulations, not the real apps.** Card rules are estimates (see above). Platforms also use their own crawlers and user agents; sites that serve different HTML to specific bots, geo-block, or use bot protection may give platforms a different result than this tool. Such cases are labeled "Tool check" where possible.
 - **Initial server HTML only.** Tags injected by client-side JavaScript are not seen — which matches most link-preview crawlers.
 - **WebKit on Windows.** Playwright's Windows WebKit build doesn't support `isMobile` and can't verify many public HTTPS certificates. On Windows the iPhone preset still uses WebKit's viewport/DPR/UA emulation, and when WebKit rejects a certificate the capture is retried once in Chromium with the iPhone viewport and UA — the result is clearly labeled with the engine actually used. On macOS and Linux WebKit captures work directly. In both cases this is browser emulation, not Safari or Chrome on a real phone.
-- **Isolation is process-level.** The worker enforces public-only egress itself, but for an internet-facing deployment also run it in a container/VM with an egress firewall that blocks private ranges and cloud metadata, and set `CAPTURE_WORKER_TOKEN`.
+- **Isolation is process-level.** The capture engine enforces public-only egress itself. On Vercel the browser runs inside the same function as the app, so a browser exploit on a hostile page could reach that function's environment (including `LPS_SECRET`). For an internet-facing deployment that matters to you, run the worker in a container/VM with an egress firewall that blocks private ranges and cloud metadata, point `CAPTURE_WORKER_URL` at it, and set `CAPTURE_WORKER_TOKEN`.
 - **No per-client rate limiting** — only global concurrency limits. Add rate limiting before exposing the app publicly.
 - **No outbound proxy support.** The fetcher connects directly and ignores `HTTP(S)_PROXY`, so networks that require a proxy won't work.
 - **Ports** are limited to 80, 443, 8080 and 8443.

@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Hide the floating Next.js route indicator. Compile and runtime errors still surface.
   devIndicators: false,
+  // In-process mobile capture on Vercel: keep the browser packages out of the bundle and
+  // ship the compressed Chromium binaries that @sparticuz/chromium reads at runtime.
+  serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
+  outputFileTracingIncludes: {
+    "/api/capture": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
 };
 
 export default nextConfig;
